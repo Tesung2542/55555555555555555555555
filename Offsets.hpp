@@ -12,3 +12,4 @@ inline constexpr uintptr_t kEffectTick = 0x0086BF10;
 inline constexpr uintptr_t kInvincibleBoost = 0x0086DAAC;
 inline constexpr uintptr_t kGigantic = 0x0086DB64;
 
+}  // namespace BNOffsets
