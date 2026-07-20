@@ -1,6 +1,4 @@
-C++
 #pragma once
-
 #include <cstdint>
 
 bool InstallBNHooks();
