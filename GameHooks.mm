@@ -177,7 +177,6 @@ const char *BNHookStatus() {
   return gHookStatus;
 }
 
-// ฟังก์ชันรันฮุกแบบปลอดภัย รอให้แอปโหลดเสร็จและหน่วงเวลาเล็กน้อย
 static void RunHooksWhenReady(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     InstallBNHooks();
@@ -188,9 +187,9 @@ static void RunHooksWhenReady(CFNotificationCenterRef center, void *observer, CF
 __attribute__((constructor)) void safeInitMod() {
   CFNotificationCenterAddObserver(
       CFNotificationCenterGetLocalCenter(),
-      &safeInitMod,
+      NULL,
       RunHooksWhenReady,
-      NSNotificationName("UIApplicationDidFinishLaunchingNotification"),
+      (__bridge CFStringRef)NSNotificationName(@"UIApplicationDidFinishLaunchingNotification"),
       NULL,
       CFNotificationSuspensionBehaviorDrop
   );
