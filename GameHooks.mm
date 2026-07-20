@@ -173,5 +173,4 @@ bool BNHooksInstalled() {
 }
 
 const char *BNHookStatus() {
-  return gHookStatus;
-}
+  return gHookStatus;}
