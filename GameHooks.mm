@@ -54,14 +54,12 @@ void ApplyPatches() {
     return;
   }
 
-  // ตัวอย่างการแพทช์ค่าเลือด (ใช้ค่า Float หรือค่าคำสั่งตาม Offset ที่คุณมี)
-  // สมมติว่าใช้ค่า Float 999.0f หรือชุดคำสั่งไบต์สำหรับล็อกเลือด
-  // (สามารถปรับเปลี่ยนชนิดตัวแปรหรือค่าที่จะเขียนทับได้ตามความเหมาะสมของ Address นั้นๆ)
+  // เปลี่ยนเป้าหมายมาใช้ kHpModify ตาม Offset ที่คุณมี
   float targetValue = 999.0f;
-  bool success = PatchMemory(BNOffsets::kLifeGet, &targetValue, sizeof(targetValue));
+  bool success = PatchMemory(BNOffsets::kHpModify, &targetValue, sizeof(targetValue));
 
   gPatchApplied = success;
-  gHookStatus = success ? "Life patch applied successfully" : "Failed to apply memory patch";
+  gHookStatus = success ? "HP patch applied successfully" : "Failed to apply memory patch";
 }
 
 }  // namespace
