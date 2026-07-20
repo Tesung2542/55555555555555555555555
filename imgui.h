@@ -2,6 +2,11 @@
 
 #define IMGUI_VERSION "1.89.9"
 
+struct ImVec2 {
+    float x, y;
+    ImVec2(float _x = 0.0f, float _y = 0.0f) : x(_x), y(_y) {}
+};
+
 typedef int ImGuiTreeNodeFlags;
 enum ImGuiTreeNodeFlags_ {
     ImGuiTreeNodeFlags_None = 0,
@@ -27,7 +32,7 @@ namespace ImGui {
     void Text(const char* fmt, ...);
     void TextWrapped(const char* fmt, ...);
     void TextUnformatted(const char* text, const char* text_end = nullptr);
-    bool Button(const char* label, const float& size = *(float*)(&(int){0}));
+    bool Button(const char* label, const ImVec2& size = ImVec2(0, 0));
     void Separator();
     void SameLine(float offset_from_start_x = 0.0f, float spacing = -1.0f);
     void SetNextItemWidth(float item_width);
