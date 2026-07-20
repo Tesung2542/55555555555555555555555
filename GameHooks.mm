@@ -27,14 +27,7 @@ using HpModifyFn = void (*)(float amount);
 using EffectTickFn = void *(*)(void *object, void *effect);
 using ApplyEffectFn = void (*)(void *object, void *effect);
 
-DispatcherFn originalDispatcher = nullptr;
 LifeGetFn originalLifeGet = nullptr;
-CookieUpdateFn originalCookieUpdate = nullptr;
-HpModifyFn originalHpModify = nullptr;
-EffectTickFn originalEffectTick = nullptr;
-
-ApplyEffectFn applyInvincibleBoost = nullptr;
-ApplyEffectFn applyGigantic = nullptr;
 
 uintptr_t FindExecutableBase() {
   for (uint32_t i = 0; i < _dyld_image_count(); ++i) {
@@ -77,50 +70,9 @@ bool Hook(uintptr_t rva, void *replacement, void **original) {
          *original != nullptr;
 }
 
-void HookDispatcher(void *object) {
-  if (originalDispatcher != nullptr) originalDispatcher(object);
-  if (object == nullptr || !BNMenu::speedEnabled.load()) return;
-
-  float multiplier = std::clamp(BNMenu::speedMultiplier.load(), 1.0f, 100.0f);
-  auto *speed = reinterpret_cast<float *>(
-      reinterpret_cast<uintptr_t>(object) + 0x50);
-  *speed *= multiplier;
-}
-
 int64_t HookLifeGet(void *object) {
   if (BNMenu::invincible.load()) return 999;
   return originalLifeGet != nullptr ? originalLifeGet(object) : 0;
-}
-
-void HookCookieUpdate(void *object) {
-  if (originalCookieUpdate != nullptr) originalCookieUpdate(object);
-  if (object == nullptr || !BNMenu::invincible.load()) return;
-
-  auto *state = reinterpret_cast<uintptr_t *>(
-      reinterpret_cast<uintptr_t>(object) + 0x3A0);
-  if (*state != 0) *state = 0;
-}
-
-void HookHpModify(float amount) {
-  if (BNMenu::speedEnabled.load() && amount < 0.0f) {
-    float multiplier = std::clamp(BNMenu::speedMultiplier.load(), 1.0f, 100.0f);
-    amount /= multiplier;
-  }
-  if (originalHpModify != nullptr) originalHpModify(amount);
-}
-
-void *HookEffectTick(void *object, void *effect) {
-  void *result = originalEffectTick != nullptr
-                     ? originalEffectTick(object, effect)
-                     : nullptr;
-  if (object == nullptr) return result;
-  if (BNMenu::invincibleBoost.load() && applyInvincibleBoost != nullptr) {
-    applyInvincibleBoost(object, effect);
-  }
-  if (BNMenu::gigantic.load() && applyGigantic != nullptr) {
-    applyGigantic(object, effect);
-  }
-  return result;
 }
 
 }  // namespace
@@ -134,9 +86,25 @@ bool InstallBNHooks() {
     return false;
   }
 
-  // ปิดการติดตั้งฮุกทั้งหมดชั่วคราว เพื่อทดสอบการเปิดเกม
-  gHooksInstalled = true;
-  gHookStatus = "All hooks temporarily disabled for testing";
+  const uintptr_t required[] = {
+      BNOffsets::kLifeGet,
+  };
+  for (uintptr_t rva : required) {
+    uintptr_t address = gImageBase + rva;
+    if ((rva & 3U) != 0 || address < gExecutableStart ||
+        address + sizeof(uint32_t) > gExecutableEnd) {
+      gHookStatus = "Recovered RVA is outside this build's __TEXT";
+      return false;
+    }
+  }
+
+  bool ok = true;
+  ok &= Hook(BNOffsets::kLifeGet, reinterpret_cast<void *>(&HookLifeGet),
+             reinterpret_cast<void **>(&originalLifeGet));
+             
+  gHooksInstalled = ok;
+  gHookStatus = ok ? "LifeGet hook active"
+                   : "MobileSubstrate rejected hook";
   return gHooksInstalled;
 }
 
