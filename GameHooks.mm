@@ -4,112 +4,75 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <sys/mman.h>
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
+#include <unistd.h>
 
-#include "dobby.h"
 #include "MenuState.hpp"
 #include "Offsets.hpp"
 
 namespace {
 
 uintptr_t gImageBase = 0;
-uintptr_t gExecutableStart = 0;
-uintptr_t gExecutableEnd = 0;
-bool gInstallAttempted = false;
-bool gHooksInstalled = false;
-const char *gHookStatus = "Hooks are not activated";
-
-using DispatcherFn = void (*)(void *object);
-using LifeGetFn = int64_t (*)(void *object);
-using CookieUpdateFn = void (*)(void *object);
-using HpModifyFn = void (*)(float amount);
-using EffectTickFn = void *(*)(void *object, void *effect);
-using ApplyEffectFn = void (*)(void *object, void *effect);
-
-LifeGetFn originalLifeGet = nullptr;
+bool gPatchApplied = false;
+const char *gHookStatus = "Patches are not activated";
 
 uintptr_t FindExecutableBase() {
   for (uint32_t i = 0; i < _dyld_image_count(); ++i) {
     const mach_header *header = _dyld_get_image_header(i);
     if (header != nullptr && header->filetype == MH_EXECUTE) {
-      uintptr_t base = reinterpret_cast<uintptr_t>(header);
-      const auto *header64 = reinterpret_cast<const mach_header_64 *>(header);
-      const uint8_t *cursor = reinterpret_cast<const uint8_t *>(header64 + 1);
-      for (uint32_t commandIndex = 0; commandIndex < header64->ncmds;
-            ++commandIndex) {
-        const auto *command = reinterpret_cast<const load_command *>(cursor);
-        if (command->cmd == LC_SEGMENT_64) {
-          const auto *segment = reinterpret_cast<const segment_command_64 *>(cursor);
-          if (std::strncmp(segment->segname, "__TEXT", sizeof(segment->segname)) == 0) {
-            gExecutableStart = base;
-            gExecutableEnd = gExecutableStart + segment->vmsize;
-            break;
-          }
-        }
-        cursor += command->cmdsize;
-      }
-      return base;
+      return reinterpret_cast<uintptr_t>(header);
     }
   }
   return 0;
 }
 
-template <typename T>
-T Resolve(uintptr_t rva) {
-  return reinterpret_cast<T>(gImageBase + rva);
-}
-
-bool Hook(uintptr_t rva, void *replacement, void **original) {
-  uintptr_t address = gImageBase + rva;
-  if ((rva & 3U) != 0 || address < gExecutableStart ||
-      address + sizeof(uint32_t) > gExecutableEnd) {
+// ฟังก์ชันเขียนทับค่าหน่วยความจำอย่างปลอดภัย (Memory Patching)
+bool PatchMemory(uintptr_t rva, const void *bytes, size_t size) {
+  if (gImageBase == 0) return false;
+  uintptr_t targetAddress = gImageBase + rva;
+  
+  size_t pageSize = sysconf(_SC_PAGESIZE);
+  uintptr_t pageStart = targetAddress & ~(pageSize - 1);
+  
+  if (mprotect(reinterpret_cast<void *>(pageStart), pageSize, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
     return false;
   }
-  return DobbyHook(Resolve<void *>(rva), replacement, original) == 0 &&
-         *original != nullptr;
+  
+  std::memcpy(reinterpret_cast<void *>(targetAddress), bytes, size);
+  
+  mprotect(reinterpret_cast<void *>(pageStart), pageSize, PROT_READ | PROT_EXEC);
+  return true;
 }
 
-int64_t HookLifeGet(void *object) {
-  if (BNMenu::invincible.load()) return 999;
-  return originalLifeGet != nullptr ? originalLifeGet(object) : 0;
+void ApplyPatches() {
+  if (gPatchApplied) return;
+  gImageBase = FindExecutableBase();
+  if (gImageBase == 0) {
+    gHookStatus = "Main executable base was not found";
+    return;
+  }
+
+  // ตัวอย่างการแพทช์ค่าเลือด (ใช้ค่า Float หรือค่าคำสั่งตาม Offset ที่คุณมี)
+  // สมมติว่าใช้ค่า Float 999.0f หรือชุดคำสั่งไบต์สำหรับล็อกเลือด
+  // (สามารถปรับเปลี่ยนชนิดตัวแปรหรือค่าที่จะเขียนทับได้ตามความเหมาะสมของ Address นั้นๆ)
+  float targetValue = 999.0f;
+  bool success = PatchMemory(BNOffsets::kLifeGet, &targetValue, sizeof(targetValue));
+
+  gPatchApplied = success;
+  gHookStatus = success ? "Life patch applied successfully" : "Failed to apply memory patch";
 }
 
 }  // namespace
 
 bool InstallBNHooks() {
-  if (gInstallAttempted) return gHooksInstalled;
-  gInstallAttempted = true;
-  gImageBase = FindExecutableBase();
-  if (gImageBase == 0 || gExecutableStart == 0 || gExecutableEnd == 0) {
-    gHookStatus = "Main executable __TEXT was not found";
-    return false;
-  }
-
-  const uintptr_t required[] = {
-      BNOffsets::kLifeGet,
-  };
-  for (uintptr_t rva : required) {
-    uintptr_t address = gImageBase + rva;
-    if ((rva & 3U) != 0 || address < gExecutableStart ||
-        address + sizeof(uint32_t) > gExecutableEnd) {
-      gHookStatus = "Recovered RVA is outside this build's __TEXT";
-      return false;
-    }
-  }
-
-  bool ok = true;
-  ok &= Hook(BNOffsets::kLifeGet, reinterpret_cast<void *>(&HookLifeGet),
-             reinterpret_cast<void **>(&originalLifeGet));
-             
-  gHooksInstalled = ok;
-  gHookStatus = ok ? "LifeGet hook active"
-                   : "MobileSubstrate rejected hook";
-  return gHooksInstalled;
+  ApplyPatches();
+  return gPatchApplied;
 }
 
 bool BNHooksInstalled() {
-  return gHooksInstalled;
+  return gPatchApplied;
 }
 
 const char *BNHookStatus() {
@@ -118,7 +81,7 @@ const char *BNHookStatus() {
 
 static void RunHooksWhenReady(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-    InstallBNHooks();
+    ApplyPatches();
   });
   CFNotificationCenterRemoveEveryObserver(CFNotificationCenterGetLocalCenter(), observer);
 }
