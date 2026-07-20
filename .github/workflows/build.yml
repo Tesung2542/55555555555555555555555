@@ -1,0 +1,26 @@
+name: Build iOS dylib
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compile dylib
+        run: |
+          clang++ -dynamiclib -std=c++17 \
+            GameHooks.mm \
+            ImGuiMenu.mm \
+            -o libGameMod.dylib \
+            -framework OpenGL -framework Foundation -framework UIKit \
+            -undefined dynamic_lookup
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-dylib
+          path: libGameMod.dylib
