@@ -148,7 +148,7 @@ bool InstallBNHooks() {
   }
 
   applyInvincibleBoost = Resolve<ApplyEffectFn>(BNOffsets::kInvincibleBoost);
-  applyGigantic = Resolve<ApplyEffectFn>(BNOppsets::kGigantic);
+  applyGigantic = Resolve<ApplyEffectFn>(BNOffsets::kGigantic);
 
   bool ok = true;
   ok &= Hook(BNOffsets::kCalcDelta, reinterpret_cast<void *>(&HookDispatcher),
@@ -176,7 +176,6 @@ const char *BNHookStatus() {
   return gHookStatus;
 }
 
-// เพิ่มฟังก์ชัน Constructor เพื่อสั่งรันติดตั้งฮุกทันทีที่โหลดไลบรารี
 __attribute__((constructor)) void autoInitHooks() {
   InstallBNHooks();
 }
