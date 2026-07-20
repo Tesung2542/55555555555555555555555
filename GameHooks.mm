@@ -27,16 +27,14 @@ using HpModifyFn = void (*)(float amount);
 using EffectTickFn = void *(*)(void *object, void *effect);
 using ApplyEffectFn = void (*)(void *object, void *effect);
 
-// ปิดการใช้งาน Dispatcher (ความเร็ว) ชั่วคราว
-// DispatcherFn originalDispatcher = nullptr;
+DispatcherFn originalDispatcher = nullptr;
 LifeGetFn originalLifeGet = nullptr;
 CookieUpdateFn originalCookieUpdate = nullptr;
 HpModifyFn originalHpModify = nullptr;
 EffectTickFn originalEffectTick = nullptr;
 
 ApplyEffectFn applyInvincibleBoost = nullptr;
-// ปิดการใช้งาน Gigantic ชั่วคราว
-// ApplyEffectFn applyGigantic = nullptr;
+ApplyEffectFn applyGigantic = nullptr;
 
 uintptr_t FindExecutableBase() {
   for (uint32_t i = 0; i < _dyld_image_count(); ++i) {
@@ -79,7 +77,6 @@ bool Hook(uintptr_t rva, void *replacement, void **original) {
          *original != nullptr;
 }
 
-/* ปิด HookDispatcher ชั่วคราว
 void HookDispatcher(void *object) {
   if (originalDispatcher != nullptr) originalDispatcher(object);
   if (object == nullptr || !BNMenu::speedEnabled.load()) return;
@@ -89,7 +86,6 @@ void HookDispatcher(void *object) {
       reinterpret_cast<uintptr_t>(object) + 0x50);
   *speed *= multiplier;
 }
-*/
 
 int64_t HookLifeGet(void *object) {
   if (BNMenu::invincible.load()) return 999;
@@ -121,11 +117,9 @@ void *HookEffectTick(void *object, void *effect) {
   if (BNMenu::invincibleBoost.load() && applyInvincibleBoost != nullptr) {
     applyInvincibleBoost(object, effect);
   }
-  /* ปิดการเรียกใช้ Gigantic ใน EffectTick ชั่วคราว
   if (BNMenu::gigantic.load() && applyGigantic != nullptr) {
     applyGigantic(object, effect);
   }
-  */
   return result;
 }
 
@@ -140,40 +134,9 @@ bool InstallBNHooks() {
     return false;
   }
 
-  const uintptr_t required[] = {
-      BNOffsets::kLifeGet, BNOffsets::kCookieUpdate,
-      BNOffsets::kHpModify, BNOffsets::kEffectTick, BNOffsets::kInvincibleBoost,
-  };
-  for (uintptr_t rva : required) {
-    uintptr_t address = gImageBase + rva;
-    if ((rva & 3U) != 0 || address < gExecutableStart ||
-        address + sizeof(uint32_t) > gExecutableEnd) {
-      gHookStatus = "Recovered RVA is outside this build's __TEXT";
-      return false;
-    }
-  }
-
-  applyInvincibleBoost = Resolve<ApplyEffectFn>(BNOffsets::kInvincibleBoost);
-  // applyGigantic = Resolve<ApplyEffectFn>(BNOffsets::kGigantic);
-
-  bool ok = true;
-  // ปิดการติดตั้ง Hook สำหรับ kCalcDelta (ฟังก์ชันที่ 1)
-  /*
-  ok &= Hook(BNOffsets::kCalcDelta, reinterpret_cast<void *>(&HookDispatcher),
-             reinterpret_cast<void **>(&originalDispatcher));
-  */
-  ok &= Hook(BNOffsets::kLifeGet, reinterpret_cast<void *>(&HookLifeGet),
-             reinterpret_cast<void **>(&originalLifeGet));
-  ok &= Hook(BNOffsets::kCookieUpdate,
-             reinterpret_cast<void *>(&HookCookieUpdate),
-             reinterpret_cast<void **>(&originalCookieUpdate));
-  ok &= Hook(BNOffsets::kHpModify, reinterpret_cast<void *>(&HookHpModify),
-             reinterpret_cast<void **>(&originalHpModify));
-  ok &= Hook(BNOffsets::kEffectTick, reinterpret_cast<void *>(&HookEffectTick),
-             reinterpret_cast<void **>(&originalEffectTick));
-  gHooksInstalled = ok;
-  gHookStatus = ok ? "Recovered hooks active"
-                   : "MobileSubstrate rejected one or more hooks";
+  // ปิดการติดตั้งฮุกทั้งหมดชั่วคราว เพื่อทดสอบการเปิดเกม
+  gHooksInstalled = true;
+  gHookStatus = "All hooks temporarily disabled for testing";
   return gHooksInstalled;
 }
 
