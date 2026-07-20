@@ -13,6 +13,8 @@ jobs:
       - name: Compile dylib
         run: |
           clang++ -dynamiclib -std=c++17 \
+            -target arm64-apple-ios \
+            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
             GameHooks.mm \
             ImGuiMenu.mm \
             -o libGameMod.dylib \
