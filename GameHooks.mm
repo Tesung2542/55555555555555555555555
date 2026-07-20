@@ -122,8 +122,6 @@ void *HookEffectTick(void *object, void *effect) {
   return result;
 }
 
-}  // namespace
-
 bool InstallBNHooks() {
   if (gInstallAttempted) return gHooksInstalled;
   gInstallAttempted = true;
@@ -175,3 +173,5 @@ bool BNHooksInstalled() {
 const char *BNHookStatus() {
   return gHookStatus;
 }
+
+}  // namespace
