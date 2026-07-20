@@ -44,10 +44,9 @@ uintptr_t FindExecutableBase() {
           const auto *segment = reinterpret_cast<const segment_command_64 *>(cursor);
           if (std::strncmp(segment->segname, "__TEXT", sizeof(segment->segname)) == 0) {
             gExecutableStart = base;
-            gExecutableEnd = gExecutableStart + segment$vmsize; // หรือ vmsize ตามต้นฉบับ
+            gExecutableEnd = gExecutableStart + segment->vmsize; 
             break;
           }
-        }
         cursor += command->cmdsize;
       }
       return base;
