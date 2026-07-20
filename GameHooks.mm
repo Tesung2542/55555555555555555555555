@@ -43,7 +43,7 @@ uintptr_t FindExecutableBase() {
       const auto *header64 = reinterpret_cast<const mach_header_64 *>(header);
       const uint8_t *cursor = reinterpret_cast<const uint8_t *>(header64 + 1);
       for (uint32_t commandIndex = 0; commandIndex < header64->ncmds;
-           ++commandIndex) {
+            ++commandIndex) {
         const auto *command = reinterpret_cast<const load_command *>(cursor);
         if (command->cmd == LC_SEGMENT_64) {
           const auto *segment = reinterpret_cast<const segment_command_64 *>(cursor);
@@ -148,7 +148,7 @@ bool InstallBNHooks() {
   }
 
   applyInvincibleBoost = Resolve<ApplyEffectFn>(BNOffsets::kInvincibleBoost);
-  applyGigantic = Resolve<ApplyEffectFn>(BNOffsets::kGigantic);
+  applyGigantic = Resolve<ApplyEffectFn>(BNOppsets::kGigantic);
 
   bool ok = true;
   ok &= Hook(BNOffsets::kCalcDelta, reinterpret_cast<void *>(&HookDispatcher),
@@ -174,4 +174,9 @@ bool BNHooksInstalled() {
 
 const char *BNHookStatus() {
   return gHookStatus;
+}
+
+// เพิ่มฟังก์ชัน Constructor เพื่อสั่งรันติดตั้งฮุกทันทีที่โหลดไลบรารี
+__attribute__((constructor)) void autoInitHooks() {
+  InstallBNHooks();
 }
