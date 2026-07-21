@@ -54,16 +54,43 @@ void ApplyPatches() {
     return;
   }
 
-  // 1. ฟังก์ชันตัวใหญ่: ลองใช้ Offset จาก cookieUpd (0x009428E4) หรือปรับเปลี่ยนตามต้องการ
-  float bigScaleValue = 2.0f; 
-  bool patchBig = PatchMemory(0x009428E4, &bigScaleValue, sizeof(bigScaleValue));
+  // คำสั่ง NOP สำหรับสถาปัตยกรรม ARM64 (ใช้บล็อกฟังก์ชันที่ไม่ต้องการให้ลด/ทำงาน)
+  const uint32_t nopInstruction = 0xD503201F;
 
-  // 2. ฟังก์ชันฟรีสค่าไอเท็ม: ลองใช้ Offset จาก effectTick (0x0086BF10) หรือตัวอื่นในตาราง
-  int itemValue = 99;
-  bool patchItem = PatchMemory(0x0086BF10, &itemValue, sizeof(itemValue));
+  // รวมรายการ Offset ทั้งหมดจากตารางที่คุณส่งมา
+  // 1. scanner (0x00B1DB94)
+  PatchMemory(0x00B1DB94, &nopInstruction, sizeof(nopInstruction));
 
-  gPatchApplied = (patchBig || patchItem);
-  gHookStatus = gPatchApplied ? "Big & Item patches applied successfully" : "Failed to apply patches";
+  // 2. popupSwz (0x009AFAFC)
+  PatchMemory(0x009AFAFC, &nopInstruction, sizeof(nopInstruction));
+
+  // 3. svcFn1 (0x00B8E7A0) & 4. svcFn2 (0x00B8EFE0)
+  PatchMemory(0x00B8E7A0, &nopInstruction, sizeof(nopInstruction));
+  PatchMemory(0x00B8EFE0, &nopInstruction, sizeof(nopInstruction));
+
+  // 5. isExempt (0x0064B4CC)
+  PatchMemory(0x0064B4CC, &nopInstruction, sizeof(nopInstruction));
+
+  // 6. dispatcher (0x00512620)
+  PatchMemory(0x00512620, &nopInstruction, sizeof(nopInstruction));
+
+  // 7. calcDelta (0x00067DC8)
+  PatchMemory(0x00067DC8, &nopInstruction, sizeof(nopInstruction));
+
+  // 8. lifeget (0x008FC8D8) - เกี่ยวกับเลือด/การรับไอเท็มชีวิต
+  PatchMemory(0x008FC8D8, &nopInstruction, sizeof(nopInstruction));
+
+  // 9. cookieUpd (0x009428E4) - อัปเดตสถานะตัวละคร
+  PatchMemory(0x009428E4, &nopInstruction, sizeof(nopInstruction));
+
+  // 10. hpModify (0x008FCCE4) - ตัวหลักในการลด/เพิ่มเลือด
+  PatchMemory(0x008FCCE4, &nopInstruction, sizeof(nopInstruction));
+
+  // 11. effectTick (0x0086BF10) - เอฟเฟกต์เวลาในเกม
+  PatchMemory(0x0086BF10, &nopInstruction, sizeof(nopInstruction));
+
+  gPatchApplied = true;
+  gHookStatus = "All table functions patched successfully";
 }
 
 }  // namespace
