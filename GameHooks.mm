@@ -28,7 +28,7 @@ uintptr_t FindExecutableBase() {
   return 0;
 }
 
-// ฟังก์ชันเขียนทับค่าหน่วยความจำอย่างปลอดภัย (Memory Patching)
+// ฟังก์ชันเขียนทับค่าหน่วยความจำ (Memory Patching)
 bool PatchMemory(uintptr_t rva, const void *bytes, size_t size) {
   if (gImageBase == 0) return false;
   uintptr_t targetAddress = gImageBase + rva;
@@ -54,12 +54,16 @@ void ApplyPatches() {
     return;
   }
 
-  // เปลี่ยนเป้าหมายมาใช้ kHpModify ตาม Offset ที่คุณมี
-  float targetValue = 999.0f;
-  bool success = PatchMemory(BNOffsets::kHpModify, &targetValue, sizeof(targetValue));
+  // 1. ฟังก์ชันตัวใหญ่: ลองใช้ Offset จาก cookieUpd (0x009428E4) หรือปรับเปลี่ยนตามต้องการ
+  float bigScaleValue = 2.0f; 
+  bool patchBig = PatchMemory(0x009428E4, &bigScaleValue, sizeof(bigScaleValue));
 
-  gPatchApplied = success;
-  gHookStatus = success ? "HP patch applied successfully" : "Failed to apply memory patch";
+  // 2. ฟังก์ชันฟรีสค่าไอเท็ม: ลองใช้ Offset จาก effectTick (0x0086BF10) หรือตัวอื่นในตาราง
+  int itemValue = 99;
+  bool patchItem = PatchMemory(0x0086BF10, &itemValue, sizeof(itemValue));
+
+  gPatchApplied = (patchBig || patchItem);
+  gHookStatus = gPatchApplied ? "Big & Item patches applied successfully" : "Failed to apply patches";
 }
 
 }  // namespace
